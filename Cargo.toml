@@ -1,0 +1,15 @@
+[package]
+
+name = "polymap"
+description = "A map containing varying types of value with compact storage"
+
+documentation = "http://murarth.github.io/polymap/polymap/index.html"
+homepage = "https://github.com/murarth/polymap"
+repository = "https://github.com/murarth/polymap"
+
+keywords = ["container", "map"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+
+version = "0.0.1"
+authors = ["Murarth <murarth@gmail.com>"]
