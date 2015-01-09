@@ -1,5 +1,6 @@
 #![crate_name = "polymap"]
-#![feature(associated_types, unsafe_destructor)]
+#![allow(unstable)]
+#![feature(unsafe_destructor)]
 
 use std::borrow::BorrowFrom;
 use std::intrinsics::{get_tydesc, TyDesc, TypeId};
@@ -7,7 +8,7 @@ use std::mem::{align_of, size_of};
 use std::ptr;
 use std::slice::Iter;
 
-fn align(offset: uint, alignment: uint) -> uint {
+fn align(offset: usize, alignment: usize) -> usize {
     match offset % alignment {
         0 => offset,
         n => offset + (alignment - n),
@@ -30,15 +31,15 @@ fn align(offset: uint, alignment: uint) -> uint {
 /// // Maps `&str` to `&str`.
 /// map.insert("foo", "Hello, world!");
 ///
-/// // Maps `&str` to `int`.
-/// map.insert("bar", 123i);
+/// // Maps `&str` to `i32`.
+/// map.insert("bar", 123);
 ///
 /// // Gets a reference to the stored member.
 /// let foo: &&str = map.get("foo").unwrap();
 /// println!("Got our string back: {}", foo);
 ///
-/// let bar: &int = map.get("bar").unwrap();
-/// println!("And here's our int: {}", bar);
+/// let bar: &i32 = map.get("bar").unwrap();
+/// println!("And here's our i32: {}", bar);
 /// ```
 ///
 /// # Notes
@@ -64,8 +65,8 @@ pub struct PolyMap<K> {
 /// is called or a `PolyMap` instance goes out of scope.
 struct Field<K> {
     key: K,
-    offset: uint,
-    size: uint,
+    offset: usize,
+    size: usize,
     id: TypeId,
     tydesc: *const TyDesc,
 }
@@ -81,7 +82,7 @@ impl<K: Eq> PolyMap<K> {
 
     /// Constructs a new `PolyMap` with space reserved for `n` fields
     /// and `size` bytes of data.
-    pub fn with_capacity(n: uint, size: uint) -> PolyMap<K> {
+    pub fn with_capacity(n: usize, size: usize) -> PolyMap<K> {
         PolyMap{
             data: Vec::with_capacity(size),
             fields: Vec::with_capacity(n),
@@ -114,9 +115,9 @@ impl<K: Eq> PolyMap<K> {
     ///
     /// let mut map = PolyMap::new();
     ///
-    /// map.insert("foo", 1i);
+    /// map.insert("foo", 1);
     /// assert_eq!(false, map.contains_key_of::<_, &str>("foo"));
-    /// assert_eq!(true, map.contains_key_of::<_, int>("foo"));
+    /// assert_eq!(true, map.contains_key_of::<_, i32>("foo"));
     /// ```
     pub fn contains_key_of<Q: ?Sized, T: 'static>(&self, k: &Q) -> bool
             where Q: Eq + BorrowFrom<K> {
@@ -125,12 +126,12 @@ impl<K: Eq> PolyMap<K> {
     }
 
     /// Returns the capacity, in bytes, of the internal data buffer.
-    pub fn data_capacity(&self) -> uint {
+    pub fn data_capacity(&self) -> usize {
         self.data.capacity()
     }
 
     /// Returns the size, in bytes, of the internal data buffer.
-    pub fn data_size(&self) -> uint {
+    pub fn data_size(&self) -> usize {
         self.data.len()
     }
 
@@ -193,30 +194,30 @@ impl<K: Eq> PolyMap<K> {
     }
 
     /// Returns the number of elements in the map.
-    pub fn len(&self) -> uint {
+    pub fn len(&self) -> usize {
         self.fields.len()
     }
 
     /// Reserves capacity for at least `additional` additional bytes of storage
     /// space within the internal data buffer.
-    pub fn reserve_data(&mut self, additional: uint) {
+    pub fn reserve_data(&mut self, additional: usize) {
         self.data.reserve(additional);
     }
 
     /// Reserves space for at least `n` bytes in the internal data buffer.
     /// Does nothing if the capacity is already sufficient.
-    pub fn reserve_data_exact(&mut self, n: uint) {
+    pub fn reserve_data_exact(&mut self, n: usize) {
         self.data.reserve_exact(n);
     }
 
     /// Reserves capacity for at least `additional` additional fields.
-    pub fn reserve_fields(&mut self, additional: uint) {
+    pub fn reserve_fields(&mut self, additional: usize) {
         self.fields.reserve(additional);
     }
 
     /// Reserves space for at least `n` fields.
     /// Does nothing if the capacity is already sufficient.
-    pub fn reserve_fields_exact(&mut self, n: uint) {
+    pub fn reserve_fields_exact(&mut self, n: usize) {
         self.fields.reserve_exact(n);
     }
 
@@ -258,13 +259,13 @@ impl<K: Eq> PolyMap<K> {
 
     /// Allocates space for an object of given size and alignment.
     /// Grows buffer if necessary. Returns offset of new object.
-    fn allocate<T: 'static>(&mut self, k: K) -> uint {
+    fn allocate<T: 'static>(&mut self, k: K) -> usize {
         let size = size_of::<T>();
         let alignment = align_of::<T>();
         let id = TypeId::of::<T>();
 
         let (offset, index) = if self.fields.is_empty() {
-            (0u, 0u)
+            (0, 0)
         } else if size <= self.fields[0].offset {
             (0, 0)
         } else {
@@ -303,14 +304,14 @@ impl<K: Eq> PolyMap<K> {
 
     /// Returns a pointer to `T` at the given offset.
     /// Does not perform any bounds checking.
-    fn get_data<T: 'static>(&self, offset: uint) -> *const T {
-        unsafe { self.data.as_ptr().offset(offset as int) as *const T }
+    fn get_data<T: 'static>(&self, offset: usize) -> *const T {
+        unsafe { self.data.as_ptr().offset(offset as isize) as *const T }
     }
 
     /// Returns a mutable pointer to `T` at the given offset.
     /// Does not perform any bounds checking.
-    fn get_data_mut<T: 'static>(&mut self, offset: uint) -> *mut T {
-        unsafe { self.data.as_mut_ptr().offset(offset as int) as *mut T }
+    fn get_data_mut<T: 'static>(&mut self, offset: usize) -> *mut T {
+        unsafe { self.data.as_mut_ptr().offset(offset as isize) as *mut T }
     }
 
     /// Returns a reference to the field descriptor for the given key.
@@ -370,18 +371,18 @@ mod tests {
     fn test_contains() {
         let mut map = PolyMap::new();
 
-        map.insert("a", 1i);
+        map.insert("a", 1);
         assert!(map.contains_key("a"));
         assert!(!map.contains_key("b"));
 
-        assert!(map.contains_key_of::<_, int>("a"));
+        assert!(map.contains_key_of::<_, i32>("a"));
         assert!(!map.contains_key_of::<_, ()>("a"));
-        assert!(!map.contains_key_of::<_, int>("b"));
+        assert!(!map.contains_key_of::<_, i32>("b"));
     }
 
     static DROP_COUNT: AtomicUint = ATOMIC_UINT_INIT;
 
-    struct Dropper { n: uint }
+    struct Dropper { n: usize }
 
     impl Drop for Dropper {
         fn drop(&mut self) {
@@ -395,9 +396,9 @@ mod tests {
 
         {
             let mut map = PolyMap::new();
-            map.insert(0u, Dropper{n: 1});
-            map.insert(1u, Dropper{n: 2});
-            map.insert(2u, Dropper{n: 3});
+            map.insert(0, Dropper{n: 1});
+            map.insert(1, Dropper{n: 2});
+            map.insert(2, Dropper{n: 3});
         }
 
         assert_eq!(DROP_COUNT.load(SeqCst), 6);
@@ -409,12 +410,12 @@ mod tests {
 
         let mut map = PolyMap::new();
 
-        map.insert(0u, 0xaa_u8);
-        map.insert(1u, 0xbb_u8);
-        map.insert(2u, 0xcc_u8);
-        map.insert(3u, 0xdd_u8);
+        map.insert(0, 0xaa_u8);
+        map.insert(1, 0xbb_u8);
+        map.insert(2, 0xcc_u8);
+        map.insert(3, 0xdd_u8);
 
-        let keys: HashSet<uint> = map.keys().map(|i| *i).collect();
+        let keys: HashSet<u32> = map.keys().map(|i| *i).collect();
         assert_eq!(keys, vec![0, 1, 2, 3].into_iter().collect());
     }
 
@@ -432,8 +433,8 @@ mod tests {
     fn test_mismatch_insert() {
         let mut map = PolyMap::new();
 
-        map.insert("a", 1i);
-        map.insert("a", 1u);
+        map.insert("a", 1i32);
+        map.insert("a", 1u32);
     }
 
     #[test]
@@ -441,8 +442,8 @@ mod tests {
     fn test_mismatch_remove() {
         let mut map = PolyMap::new();
 
-        map.insert("a", 1i);
-        let _ = map.remove::<_, uint>("a");
+        map.insert("a", 1);
+        let _ = map.remove::<_, u32>("a");
     }
 
     #[test]
