@@ -2,11 +2,12 @@
 #![allow(unstable)]
 #![feature(unsafe_destructor)]
 
+use std::any::TypeId;
 use std::borrow::BorrowFrom;
 use std::collections::HashMap;
 use std::collections::hash_map::{self, Hasher};
 use std::hash::Hash;
-use std::intrinsics::{get_tydesc, TyDesc, TypeId};
+use std::intrinsics::{get_tydesc, TyDesc};
 use std::mem::{align_of, size_of};
 use std::ptr;
 
