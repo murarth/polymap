@@ -1,5 +1,5 @@
 #![crate_name = "polymap"]
-#![allow(unstable)]
+#![feature(collections, core)]
 #![feature(unsafe_destructor)]
 
 use std::any::TypeId;
@@ -551,7 +551,7 @@ mod tests {
         assert_eq!(map.get::<_, String>("b"), Some(&"b".to_string()));
     }
 
-    #[derive(Copy, PartialEq, Eq, Show)]
+    #[derive(Copy, Debug, PartialEq, Eq)]
     struct A;
 
     #[test]
