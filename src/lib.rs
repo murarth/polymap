@@ -3,9 +3,9 @@
 #![feature(unsafe_destructor)]
 
 use std::any::TypeId;
-use std::borrow::BorrowFrom;
+use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::collections::hash_map::{self, Hasher};
+use std::collections::hash_map;
 use std::hash::Hash;
 use std::intrinsics::{get_tydesc, TyDesc};
 use std::mem::{align_of, size_of};
@@ -53,7 +53,7 @@ fn align(offset: usize, alignment: usize) -> usize {
 /// reallocation and move operations.
 ///
 #[derive(Default)]
-pub struct PolyMap<K: Eq + Hash<Hasher>> {
+pub struct PolyMap<K: Eq + Hash> {
     /// Value data store
     data: Vec<u8>,
     /// Maps key to field offset
@@ -75,7 +75,7 @@ struct Field {
     tydesc: *const TyDesc,
 }
 
-impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
+impl<K> PolyMap<K> where K: Eq + Hash {
     /// Constructs a new `PolyMap`.
     pub fn new() -> PolyMap<K> {
         PolyMap{
@@ -107,7 +107,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
     /// Returns whether the map contains a value corresponding to the given key.
     /// Does not make any assertions about the type of the value.
     pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool
-            where Q: Eq + Hash<Hasher> + BorrowFrom<K> {
+            where K: Borrow<Q>, Q: Eq + Hash {
         self.field_map.contains_key(k)
     }
 
@@ -126,7 +126,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
     /// assert_eq!(true, map.contains_key_of::<_, i32>("foo"));
     /// ```
     pub fn contains_key_of<Q: ?Sized, T: 'static>(&self, k: &Q) -> bool
-            where Q: Eq + Hash<Hasher> + BorrowFrom<K> {
+            where K: Borrow<Q>, Q: Eq + Hash {
         let id = TypeId::of::<T>();
         self.get_field(k).map(|f| f.id == id) == Some(true)
     }
@@ -149,7 +149,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
     ///
     /// If the key exists, but the type of value differs from the one requested.
     pub fn get<Q: ?Sized, T: 'static>(&self, k: &Q) -> Option<&T>
-            where Q: Eq + Hash<Hasher> + BorrowFrom<K> {
+            where K: Borrow<Q>, Q: Eq + Hash {
         self.get_field_with_id(k, TypeId::of::<T>())
             .map(|f| unsafe { &*self.get_data(f.offset) })
     }
@@ -162,7 +162,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
     ///
     /// If the key exists, but the type of value differs from the one requested.
     pub fn get_mut<Q: ?Sized, T: 'static>(&mut self, k: &Q) -> Option<&mut T>
-            where Q: Eq + Hash<Hasher> + BorrowFrom<K> {
+            where K: Borrow<Q>, Q: Eq + Hash {
         self.get_field_with_id(k, TypeId::of::<T>())
             .map(|f| f.offset)
             .map(|offset| unsafe { &mut *self.get_data_mut(offset) })
@@ -233,7 +233,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
     ///
     /// If the key exists, but the type of value differs from the one requested.
     pub fn remove<Q: ?Sized, T: 'static>(&mut self, k: &Q) -> Option<T>
-            where Q: Eq + Hash<Hasher> + BorrowFrom<K> {
+            where K: Borrow<Q>, Q: Eq + Hash {
         let id = TypeId::of::<T>();
 
         let pos = self.get_offset(k).map(|offset|
@@ -321,7 +321,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
 
     /// Returns a reference to the field descriptor for the given key.
     fn get_field<Q: ?Sized>(&self, k: &Q) -> Option<&Field>
-            where Q: Eq + Hash<Hasher> + BorrowFrom<K> {
+            where K: Borrow<Q>, Q: Eq + Hash {
         self.field_map.get(k).map(|off| {
             let pos = self.fields.binary_search_by(|f| f.offset.cmp(off)).unwrap();
             &self.fields[pos]
@@ -329,7 +329,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
     }
 
     fn get_offset<Q: ?Sized>(&self, k: &Q) -> Option<usize>
-            where Q: Eq + Hash<Hasher> + BorrowFrom<K> {
+            where K: Borrow<Q>, Q: Eq + Hash {
         self.field_map.get(k).map(|&o| o)
     }
 
@@ -339,7 +339,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
     ///
     /// If the given field has a different `TypeId` than the one given.
     fn get_field_with_id<Q: ?Sized>(&self, k: &Q, id: TypeId) -> Option<&Field>
-            where Q: Eq + Hash<Hasher> + BorrowFrom<K> {
+            where K: Borrow<Q>, Q: Eq + Hash {
         self.get_field(k).map(|f| {
             if f.id != id {
                 panic!("lookup for value of a different type");
@@ -350,7 +350,7 @@ impl<K> PolyMap<K> where K: Eq + Hash<Hasher> {
 }
 
 #[unsafe_destructor]
-impl<K> Drop for PolyMap<K> where K: Eq + Hash<Hasher> {
+impl<K> Drop for PolyMap<K> where K: Eq + Hash {
     fn drop(&mut self) {
         self.clear();
     }
