@@ -559,7 +559,7 @@ mod tests {
         assert_eq!(map.get::<_, String>("b"), Some(&"b".to_string()));
     }
 
-    #[derive(Copy, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     struct A;
 
     #[test]
