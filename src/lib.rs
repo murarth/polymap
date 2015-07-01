@@ -1,5 +1,5 @@
 #![crate_name = "polymap"]
-#![feature(collections, core)]
+#![feature(core_intrinsics, vec_resize)]
 
 use std::any::{Any, TypeId};
 use std::borrow::Borrow;
