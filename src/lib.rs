@@ -1,4 +1,4 @@
-#![feature(core_intrinsics, vec_resize)]
+#![feature(drop_in_place)]
 
 //! `polymap` provides implementations of two mapping containers for
 //! heterogeneous values:

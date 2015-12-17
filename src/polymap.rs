@@ -2,7 +2,7 @@ use std::any::{Any, TypeId};
 use std::borrow::Borrow;
 use std::collections::{hash_map, HashMap};
 use std::hash::Hash;
-use std::intrinsics::{drop_in_place, needs_drop};
+use std::intrinsics::drop_in_place;
 use std::mem::{align_of, size_of};
 use std::ptr;
 
@@ -61,7 +61,7 @@ struct Field {
     offset: usize,
     size: usize,
     id: TypeId,
-    drop: Option<fn(*mut ())>,
+    drop: fn(*mut ()),
 }
 
 fn align(offset: usize, alignment: usize) -> usize {
@@ -100,9 +100,7 @@ impl<K: Eq + Hash> PolyMap<K> {
     /// stored values.
     pub fn clear(&mut self) {
         while let Some(f) = self.fields.pop() {
-            if let Some(dropper) = f.drop {
-                dropper(self.get_data_mut::<()>(f.offset));
-            }
+            (f.drop)(self.get_data_mut::<()>(f.offset));
         }
     }
 
@@ -303,11 +301,7 @@ impl<K: Eq + Hash> PolyMap<K> {
             offset: offset,
             size: size,
             id: id,
-            drop: if unsafe { needs_drop::<T>() } {
-                Some(drop_ptr::<T>)
-            } else {
-                None
-            },
+            drop: drop_ptr::<T>,
         });
 
         offset
