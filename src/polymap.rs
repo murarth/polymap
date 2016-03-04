@@ -2,7 +2,6 @@ use std::any::{Any, TypeId};
 use std::borrow::Borrow;
 use std::collections::{hash_map, HashMap};
 use std::hash::Hash;
-use std::intrinsics::drop_in_place;
 use std::mem::{align_of, size_of};
 use std::ptr;
 
@@ -73,7 +72,7 @@ fn align(offset: usize, alignment: usize) -> usize {
 
 /// Drops the pointed-to value as `T`.
 fn drop_ptr<T>(p: *mut ()) {
-    unsafe { drop_in_place(p as *mut T); }
+    unsafe { ptr::drop_in_place(p as *mut T); }
 }
 
 impl<K: Eq + Hash> PolyMap<K> {
