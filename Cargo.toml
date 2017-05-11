@@ -3,7 +3,7 @@
 name = "polymap"
 description = "A map containing varying types of value with compact storage"
 
-documentation = "http://murarth.github.io/polymap/polymap/index.html"
+documentation = "https://docs.rs/polymap/"
 homepage = "https://github.com/murarth/polymap"
 repository = "https://github.com/murarth/polymap"
 
