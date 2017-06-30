@@ -13,3 +13,6 @@ readme = "README.md"
 
 version = "0.1.1"
 authors = ["Murarth <murarth@gmail.com>"]
+
+[dev-dependencies]
+rand = "0.3"
