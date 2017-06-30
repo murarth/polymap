@@ -1,8 +1,8 @@
 # polymap
 
-A map containing varying types of value with compact storage.
+A map containing varying types of value.
 
-[Documentation](http://murarth.github.io/polymap/polymap/index.html)
+[Documentation](https://docs.rs/polymap/)
 
 ## Usage
 
@@ -10,7 +10,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-polymap = "*"
+polymap = "0.2"
 ```
 
 And this to your crate root:
