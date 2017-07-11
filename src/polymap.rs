@@ -229,6 +229,12 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     }
 }
 
+impl<K: Eq + Hash + fmt::Debug, S: BuildHasher> fmt::Debug for PolyMap<K, S> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_map().entries(self.map.iter()).finish()
+    }
+}
+
 impl<K: Eq + Hash, S: BuildHasher + Default> Default for PolyMap<K, S> {
     fn default() -> PolyMap<K, S> {
         PolyMap::with_hasher(S::default())
@@ -420,6 +426,21 @@ mod test {
         assert!(map.contains_key_of::<_, i32>("a"));
         assert!(!map.contains_key_of::<_, ()>("a"));
         assert!(!map.contains_key_of::<_, i32>("b"));
+    }
+
+    #[test]
+    fn test_debug() {
+        let mut m = PolyMap::new();
+
+        m.insert("foo", 123_i32);
+
+        assert_eq!(format!("{:?}", m), r#"{"foo": Any}"#);
+
+        assert_eq!(format!("{:?}", m.entry::<i32>("foo")),
+            r#"Entry(OccupiedEntry { key: "foo", value: 123 })"#);
+
+        assert_eq!(format!("{:?}", m.entry::<()>("bar")),
+            r#"Entry(VacantEntry { key: "bar" })"#);
     }
 
     #[test]
