@@ -43,6 +43,7 @@ pub struct PolyMap<K: Eq + Hash, S = RandomState> {
 
 impl<K: Eq + Hash> PolyMap<K, RandomState> {
     /// Constructs a new `PolyMap`.
+    #[inline]
     pub fn new() -> PolyMap<K> {
         PolyMap{
             map: HashMap::new(),
@@ -50,6 +51,7 @@ impl<K: Eq + Hash> PolyMap<K, RandomState> {
     }
 
     /// Constructs a new `PolyMap` with space reserved for `n` elements.
+    #[inline]
     pub fn with_capacity(n: usize) -> PolyMap<K> {
         PolyMap{
             map: HashMap::with_capacity(n),
@@ -59,6 +61,7 @@ impl<K: Eq + Hash> PolyMap<K, RandomState> {
 
 impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     /// Creates an empty `PolyMap` which will use the given hash builder to hash keys.
+    #[inline]
     pub fn with_hasher(hash_builder: S) -> PolyMap<K, S> {
         PolyMap{
             map: HashMap::with_hasher(hash_builder),
@@ -66,12 +69,14 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     }
 
     /// Removes all key-value pairs from the map.
+    #[inline]
     pub fn clear(&mut self) {
         self.map.clear();
     }
 
     /// Returns whether the map contains a value corresponding to the given key.
     /// Does not make any assertions about the type of the value.
+    #[inline]
     pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool
             where K: Borrow<Q>, Q: Eq + Hash {
         self.map.contains_key(k)
@@ -91,12 +96,14 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     /// assert_eq!(false, map.contains_key_of::<_, &str>("foo"));
     /// assert_eq!(true, map.contains_key_of::<_, i32>("foo"));
     /// ```
+    #[inline]
     pub fn contains_key_of<Q: ?Sized, T: Any>(&self, k: &Q) -> bool
             where K: Borrow<Q>, Q: Eq + Hash {
         self.map.get(k).map_or(false, |v| v.is::<T>())
     }
 
     /// Returns the number of elements the map can hold without reallocating.
+    #[inline]
     pub fn capacity(&self) -> usize {
         self.map.capacity()
     }
@@ -109,6 +116,7 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     /// # Panics
     ///
     /// If the entry exists, but the type of value differs from the one requested.
+    #[inline]
     pub fn entry<T: Any>(&mut self, key: K) -> Entry<K, T> {
         match self.map.entry(key) {
             hash_map::Entry::Vacant(ent) => Entry::Vacant(VacantEntry::new(ent)),
@@ -129,6 +137,7 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     /// # Panics
     ///
     /// If the key exists, but the type of value differs from the one requested.
+    #[inline]
     pub fn get<Q: ?Sized, T: Any>(&self, k: &Q) -> Option<&T>
             where K: Borrow<Q>, Q: Eq + Hash {
         if let Some(v) = self.map.get(k) {
@@ -149,6 +158,7 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     /// # Panics
     ///
     /// If the key exists, but the type of value differs from the one requested.
+    #[inline]
     pub fn get_mut<Q: ?Sized, T: Any>(&mut self, k: &Q) -> Option<&mut T>
             where K: Borrow<Q>, Q: Eq + Hash {
         if let Some(v) = self.map.get_mut(k) {
@@ -168,6 +178,7 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     /// # Panics
     ///
     /// If the key exists, but has a value of a different type than the one given.
+    #[inline]
     pub fn insert<T: Any>(&mut self, k: K, t: T) -> Option<T> {
         let old = self.map.insert(k, Box::new(t));
 
@@ -184,21 +195,25 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
 
     /// Returns an iterator visiting all keys in arbitrary order.
     /// Iterator element type is `&K`.
+    #[inline]
     pub fn keys(&self) -> Keys<K> {
         Keys{iter: self.map.keys()}
     }
 
     /// Returns the number of elements in the map.
+    #[inline]
     pub fn len(&self) -> usize {
         self.map.len()
     }
 
     /// Returns whether the map is empty.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
 
     /// Reserves capacity for at least `additional` additional elements.
+    #[inline]
     pub fn reserve(&mut self, additional: usize) {
         self.map.reserve(additional);
     }
@@ -208,6 +223,7 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     /// # Panics
     ///
     /// If the key exists, but the type of value differs from the one requested.
+    #[inline]
     pub fn remove<Q: ?Sized, T: Any>(&mut self, k: &Q) -> Option<T>
             where K: Borrow<Q>, Q: Eq + Hash {
         let v = self.map.remove(k);
@@ -224,6 +240,7 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     }
 
     /// Shrinks the capacity of the map as much as possible.
+    #[inline]
     pub fn shrink_to_fit(&mut self) {
         self.map.shrink_to_fit();
     }
@@ -256,6 +273,7 @@ pub enum Entry<'a, K: 'a, V: Any> {
 
 impl<'a, K, V: Any> Entry<'a, K, V> {
     /// Inserts a value if empty, then returns a mutable reference.
+    #[inline]
     pub fn or_insert(self, default: V) -> &'a mut V {
         match self {
             Entry::Occupied(ent) => ent.into_mut(),
@@ -265,6 +283,7 @@ impl<'a, K, V: Any> Entry<'a, K, V> {
 
     /// Inserts a value if empty using the given function,
     /// then returns a mutable reference.
+    #[inline]
     pub fn or_insert_with<F: FnOnce() -> V>(self, default: F) -> &'a mut V {
         match self {
             Entry::Occupied(ent) => ent.into_mut(),
@@ -273,6 +292,7 @@ impl<'a, K, V: Any> Entry<'a, K, V> {
     }
 
     /// Returns a reference to the entry's key.
+    #[inline]
     pub fn key(&self) -> &K {
         match *self {
             Entry::Occupied(ref ent) => ent.key(),
@@ -311,38 +331,45 @@ impl<'a, K, V: Any> OccupiedEntry<'a, K, V> {
     }
 
     /// Returns a reference to the entry's key.
+    #[inline]
     pub fn key(&self) -> &K {
         self.entry.key()
     }
 
     /// Removes the entry and returns its key value pair.
+    #[inline]
     pub fn remove_entry(self) -> (K, V) {
         let (k, v) = self.entry.remove_entry();
         (k, *v.downcast().expect("wrong type in entry"))
     }
 
     /// Returns a reference to the entry value.
+    #[inline]
     pub fn get(&self) -> &V {
         self.entry.get().downcast_ref().expect("wrong type in entry")
     }
 
     /// Returns a mutable reference to the entry value.
+    #[inline]
     pub fn get_mut(&mut self) -> &mut V {
         self.entry.get_mut().downcast_mut().expect("wrong type in entry")
     }
 
     /// Consumes the entry and returns a mutable reference
     /// tied to the lifetime of the parent container.
+    #[inline]
     pub fn into_mut(self) -> &'a mut V {
         self.entry.into_mut().downcast_mut().expect("wrong type in entry")
     }
 
     /// Inserts a value into the entry and returns the old value.
+    #[inline]
     pub fn insert(&mut self, value: V) -> V {
         *self.entry.insert(Box::new(value)).downcast().expect("wrong type in entry")
     }
 
     /// Removes the entry and returns the value.
+    #[inline]
     pub fn remove(self) -> V {
         *self.entry.remove().downcast().expect("wrong type in entry")
     }
@@ -372,16 +399,19 @@ impl<'a, K: 'a, V: Any> VacantEntry<'a, K, V> {
     }
 
     /// Returns a reference to the entry's key.
+    #[inline]
     pub fn key(&self) -> &K {
         self.entry.key()
     }
 
     /// Consumes the entry and returns the owned key value.
+    #[inline]
     pub fn into_key(self) -> K {
         self.entry.into_key()
     }
 
     /// Consumes the entry, inserting a value and returning a mutable reference.
+    #[inline]
     pub fn insert(self, value: V) -> &'a mut V {
         self.entry.insert(Box::new(value)).downcast_mut().expect("wrong type in entry")
     }
