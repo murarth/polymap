@@ -4,7 +4,9 @@ use std::any::Any;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::collections::hash_map::{self, RandomState};
+use std::fmt;
 use std::hash::{BuildHasher, Hash};
+use std::marker::PhantomData;
 
 /// A key-value map that can contain varying types of values.
 ///
@@ -97,6 +99,27 @@ impl<K: Eq + Hash, S: BuildHasher> PolyMap<K, S> {
     /// Returns the number of elements the map can hold without reallocating.
     pub fn capacity(&self) -> usize {
         self.map.capacity()
+    }
+
+    /// Returns the key's corresponding entry in the map for in-place manipulation.
+    ///
+    /// Whether the entry is occupied or vacant, the type of value that can be
+    /// inserted into the returned entry is constrained to `T`.
+    ///
+    /// # Panics
+    ///
+    /// If the entry exists, but the type of value differs from the one requested.
+    pub fn entry<T: Any>(&mut self, key: K) -> Entry<K, T> {
+        match self.map.entry(key) {
+            hash_map::Entry::Vacant(ent) => Entry::Vacant(VacantEntry::new(ent)),
+            hash_map::Entry::Occupied(ent) => {
+                if !ent.get().is::<T>() {
+                    panic!("entry for value of a different type");
+                }
+
+                Entry::Occupied(OccupiedEntry::new(ent))
+            }
+        }
     }
 
     /// Returns a reference to the value corresponding to the given key.
@@ -212,6 +235,160 @@ impl<K: Eq + Hash, S: BuildHasher + Default> Default for PolyMap<K, S> {
     }
 }
 
+/// A view into a single entry in a map, which may be either vacant or occupied.
+///
+/// This enum is returned from the [`entry`][entry] method on [`PolyMap`][polymap].
+///
+/// [polymap]: struct.PolyMap.html
+/// [entry]: struct.PolyMap.html#method.entry
+pub enum Entry<'a, K: 'a, V: Any> {
+    /// An occupied entry
+    Occupied(OccupiedEntry<'a, K, V>),
+    /// A vacant entry
+    Vacant(VacantEntry<'a, K, V>),
+}
+
+impl<'a, K, V: Any> Entry<'a, K, V> {
+    /// Inserts a value if empty, then returns a mutable reference.
+    pub fn or_insert(self, default: V) -> &'a mut V {
+        match self {
+            Entry::Occupied(ent) => ent.into_mut(),
+            Entry::Vacant(ent) => ent.insert(default)
+        }
+    }
+
+    /// Inserts a value if empty using the given function,
+    /// then returns a mutable reference.
+    pub fn or_insert_with<F: FnOnce() -> V>(self, default: F) -> &'a mut V {
+        match self {
+            Entry::Occupied(ent) => ent.into_mut(),
+            Entry::Vacant(ent) => ent.insert(default())
+        }
+    }
+
+    /// Returns a reference to the entry's key.
+    pub fn key(&self) -> &K {
+        match *self {
+            Entry::Occupied(ref ent) => ent.key(),
+            Entry::Vacant(ref ent) => ent.key()
+        }
+    }
+}
+
+impl<'a, K: 'a + fmt::Debug, V: Any + fmt::Debug> fmt::Debug for Entry<'a, K, V> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Entry::Occupied(ref ent) =>
+                f.debug_tuple("Entry")
+                    .field(ent)
+                    .finish(),
+            Entry::Vacant(ref ent) =>
+                f.debug_tuple("Entry")
+                    .field(ent)
+                    .finish(),
+        }
+    }
+}
+
+/// A view into an occupied entry in a `PolyMap`.
+pub struct OccupiedEntry<'a, K: 'a, V: Any> {
+    entry: hash_map::OccupiedEntry<'a, K, Box<Any>>,
+    _data: PhantomData<V>,
+}
+
+impl<'a, K, V: Any> OccupiedEntry<'a, K, V> {
+    fn new(entry: hash_map::OccupiedEntry<'a, K, Box<Any>>) -> OccupiedEntry<'a, K, V> {
+        OccupiedEntry{
+            entry: entry,
+            _data: PhantomData,
+        }
+    }
+
+    /// Returns a reference to the entry's key.
+    pub fn key(&self) -> &K {
+        self.entry.key()
+    }
+
+    /// Removes the entry and returns its key value pair.
+    pub fn remove_entry(self) -> (K, V) {
+        let (k, v) = self.entry.remove_entry();
+        (k, *v.downcast().expect("wrong type in entry"))
+    }
+
+    /// Returns a reference to the entry value.
+    pub fn get(&self) -> &V {
+        self.entry.get().downcast_ref().expect("wrong type in entry")
+    }
+
+    /// Returns a mutable reference to the entry value.
+    pub fn get_mut(&mut self) -> &mut V {
+        self.entry.get_mut().downcast_mut().expect("wrong type in entry")
+    }
+
+    /// Consumes the entry and returns a mutable reference
+    /// tied to the lifetime of the parent container.
+    pub fn into_mut(self) -> &'a mut V {
+        self.entry.into_mut().downcast_mut().expect("wrong type in entry")
+    }
+
+    /// Inserts a value into the entry and returns the old value.
+    pub fn insert(&mut self, value: V) -> V {
+        *self.entry.insert(Box::new(value)).downcast().expect("wrong type in entry")
+    }
+
+    /// Removes the entry and returns the value.
+    pub fn remove(self) -> V {
+        *self.entry.remove().downcast().expect("wrong type in entry")
+    }
+}
+
+impl<'a, K: fmt::Debug, V: Any + fmt::Debug> fmt::Debug for OccupiedEntry<'a, K, V> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("OccupiedEntry")
+            .field("key", self.key())
+            .field("value", self.get())
+            .finish()
+    }
+}
+
+/// A view into a vacant entry in a `PolyMap`.
+pub struct VacantEntry<'a, K: 'a, V: Any> {
+    entry: hash_map::VacantEntry<'a, K, Box<Any>>,
+    _data: PhantomData<V>,
+}
+
+impl<'a, K: 'a, V: Any> VacantEntry<'a, K, V> {
+    fn new(entry: hash_map::VacantEntry<'a, K, Box<Any>>) -> VacantEntry<'a, K, V> {
+        VacantEntry{
+            entry: entry,
+            _data: PhantomData,
+        }
+    }
+
+    /// Returns a reference to the entry's key.
+    pub fn key(&self) -> &K {
+        self.entry.key()
+    }
+
+    /// Consumes the entry and returns the owned key value.
+    pub fn into_key(self) -> K {
+        self.entry.into_key()
+    }
+
+    /// Consumes the entry, inserting a value and returning a mutable reference.
+    pub fn insert(self, value: V) -> &'a mut V {
+        self.entry.insert(Box::new(value)).downcast_mut().expect("wrong type in entry")
+    }
+}
+
+impl<'a, K: fmt::Debug, V: Any> fmt::Debug for VacantEntry<'a, K, V> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("VacantEntry")
+            .field("key", self.key())
+            .finish()
+    }
+}
+
 /// Iterator over the keys of a `PolyMap`
 #[derive(Clone)]
 pub struct Keys<'a, K: 'a> {
@@ -243,6 +420,28 @@ mod test {
         assert!(map.contains_key_of::<_, i32>("a"));
         assert!(!map.contains_key_of::<_, ()>("a"));
         assert!(!map.contains_key_of::<_, i32>("b"));
+    }
+
+    #[test]
+    fn test_entry() {
+        let mut m = PolyMap::new();
+
+        m.entry("foo").or_insert(123u32);
+        m.entry("bar").or_insert_with(String::new);
+
+        assert_eq!(m.len(), 2);
+        assert_eq!(m.get::<_, u32>("foo"), Some(&123));
+        assert_eq!(m.get::<_, String>("bar"), Some(&String::new()));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_entry_fail() {
+        let mut m = PolyMap::new();
+
+        m.insert("foo", 123);
+
+        let _ = m.entry::<String>("foo");
     }
 
     static DROP_COUNT: AtomicUsize = ATOMIC_USIZE_INIT;
