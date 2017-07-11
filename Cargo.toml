@@ -1,5 +1,4 @@
 [package]
-
 name = "polymap"
 description = "A map containing varying types of value"
 
@@ -11,7 +10,7 @@ keywords = ["any", "container", "map"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
 
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Murarth <murarth@gmail.com>"]
 
 [dev-dependencies]
